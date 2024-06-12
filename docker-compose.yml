@@ -1,0 +1,64 @@
+version: "3.0"
+
+services:
+  # 启动mariadb
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile-db
+    image: future-common-test-dev:latest
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+      - TZ=Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --skip-character-set-client-handshake
+    ports:
+      - '3306:3306'
+
+  # redis集群
+  redis-node1:
+    build:
+      context: .
+      dockerfile: ./Dockerfile-redis
+    image: redis-dev:latest
+    command: redis-server /usr/local/etc/redis/redis.conf --port 6380 --cluster-announce-ip 127.0.0.1
+    volumes:
+      - ./redis.cluster.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - TZ=Asia/Shanghai
+    network_mode: 'host'
+  redis-node2:
+    build:
+      context: .
+      dockerfile: ./Dockerfile-redis
+    image: redis-dev:latest
+    command: redis-server /usr/local/etc/redis/redis.conf --port 6381 --cluster-announce-ip 127.0.0.1
+    volumes:
+      - ./redis.cluster.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - TZ=Asia/Shanghai
+    network_mode: 'host'
+  redis-node3:
+    build:
+      context: .
+      dockerfile: ./Dockerfile-redis
+    image: redis-dev:latest
+    command: redis-server /usr/local/etc/redis/redis.conf --port 6382 --cluster-announce-ip 127.0.0.1
+    volumes:
+      - ./redis.cluster.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - TZ=Asia/Shanghai
+    network_mode: 'host'
+  redis-cluster-creator:
+    build:
+      context: .
+      dockerfile: ./Dockerfile-redis
+    image: redis-dev:latest
+    entrypoint: [ /bin/sh, -c, 'echo "yes" | redis-cli --cluster create --cluster-replicas 0 127.0.0.1:6380 127.0.0.1:6381 127.0.0.1:6382' ]
+    depends_on:
+      - redis-node1
+      - redis-node2
+      - redis-node3
+    network_mode: 'host'
